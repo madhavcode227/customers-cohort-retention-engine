@@ -54,7 +54,8 @@ for _, row in customers_unique.iterrows():
             "payment_method": np.random.choice(
                 ["credit_card", "paypal", "debit_card", "upi"],
                 p=[0.45, 0.25, 0.20, 0.10]
-            )
+            ),
+            "order_amount": round(np.random.gamma(shape=2.5, scale=25), 2)
         })
         order_id_counter += 1
 
@@ -62,4 +63,5 @@ orders_df = pd.DataFrame(orders)
 orders_df.to_csv("raw_orders.csv", index=False)
 
 print(f"\nGenerated {len(orders_df)} total orders for {orders_df['customer_id'].nunique()} customers")
+print(f"Average order amount: ${orders_df['order_amount'].mean():.2f}")
 print(orders_df.head(10))
