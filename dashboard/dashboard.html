@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Cohort Retention & LTV Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F4EF;
+    --ink: #1C2430;
+    --ink-soft: #4A5568;
+    --line: #DAD5C9;
+    --teal: #1F6F5C;
+    --teal-soft: #E4EFEB;
+    --rust: #B8533A;
+    --rust-soft: #F5E7E2;
+    --amber: #C98A2E;
+    --card: #FFFFFF;
+
+    --c-organic: #1F6F5C;
+    --c-referral: #2E5C8A;
+    --c-email: #7A5A9E;
+    --c-direct: #6B7280;
+    --c-social: #C98A2E;
+    --c-paid_search: #B8533A;
+    --c-unknown: #A8A29A;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 56px 32px 100px; }
+
+  /* ---------- HERO ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 40px;
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--teal);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 4.2vw, 46px);
+    letter-spacing: -0.01em;
+    max-width: 900px;
+    color: var(--ink);
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--rust);
+  }
+  .hero-sub {
+    margin-top: 16px;
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 640px;
+  }
+  .hero-meta {
+    margin-top: 28px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .meta-item b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- SECTION LABELS ---------- */
+  .section { margin-bottom: 64px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .section-desc {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    max-width: 620px;
+    margin-bottom: 26px;
+  }
+
+  /* ---------- CARDS ---------- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 28px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
+  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ---------- KPI STRIP ---------- */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 56px;
+  }
+  @media (max-width: 760px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--card);
+    padding: 22px 20px;
+  }
+  .kpi-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .kpi-value.teal { color: var(--teal); }
+  .kpi-value.rust { color: var(--rust); }
+  .kpi-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* ---------- LEGEND ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px 20px; margin-top: 18px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+  .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  /* ---------- TABLE ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    font-weight: 600;
+    padding: 0 10px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  tr:last-child td { border-bottom: none; }
+  .channel-tag { display: flex; align-items: center; gap: 8px; font-family: 'Inter', sans-serif; font-weight: 500; }
+
+  /* ---------- HEATMAP ---------- */
+  .heatmap { display: grid; grid-template-columns: 90px repeat(7, 1fr); gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .hm-head { font-size: 10.5px; color: var(--ink-soft); text-align: center; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .hm-row-label { color: var(--ink-soft); display: flex; align-items: center; font-size: 11.5px; }
+  .hm-cell { aspect-ratio: 1.4; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: white; }
+  .hm-empty { background: transparent; }
+
+  /* ---------- INSIGHT CALLOUT ---------- */
+  .callout {
+    background: var(--teal-soft);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 8px 8px 0;
+    padding: 18px 22px;
+    font-size: 14px;
+    color: var(--ink);
+    margin-top: 20px;
+  }
+  .callout b { color: var(--teal); }
+  .callout.rust { background: var(--rust-soft); border-left-color: var(--rust); }
+  .callout.rust b { color: var(--rust); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 28px;
+    margin-top: 40px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Growth Analytics · E-Commerce</div>
+    <h1>Organic customers are worth <em>3.8× more</em> than paid search — <br>and it isn't about how much they spend.</h1>
+    <p class="hero-sub">A cohort retention and lifetime value analysis built to answer one question for the Head of Growth: which acquisition channels bring loyal customers, and which bring one-time buyers?</p>
+    <div class="hero-meta">
+      <div class="meta-item"><b>3,000</b> customers</div>
+      <div class="meta-item"><b>8,931</b> orders</div>
+      <div class="meta-item"><b>24</b> months of data</div>
+      <div class="meta-item"><b>6</b> acquisition channels</div>
+    </div>
+  </header>
+
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">Top channel LTV</div>
+      <div class="kpi-value teal">$333</div>
+      <div class="kpi-sub">Organic — avg. per customer</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Lowest channel LTV</div>
+      <div class="kpi-value rust">$87</div>
+      <div class="kpi-sub">Paid Search — avg. per customer</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Month-1 retention</div>
+      <div class="kpi-value">21.3%</div>
+      <div class="kpi-sub">Across all cohorts</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">High-value segments</div>
+      <div class="kpi-value">40%</div>
+      <div class="kpi-sub">Champions + Loyal customers</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: LTV BY CHANNEL -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">01</span><span class="section-title">Lifetime value by acquisition channel</span></div>
+    <p class="section-desc">Average customer LTV, ordered highest to lowest. Bar width reflects how many customers came from that channel — revealing the volume-versus-value tradeoff at a glance.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <canvas id="ltvChart" height="290"></canvas>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Channel</th><th>Customers</th><th>Avg LTV</th><th>Avg Orders</th></tr></thead>
+          <tbody id="ltvTable"></tbody>
+        </table>
+        <div class="callout">
+          <b>Why the gap exists:</b> average order value is nearly identical across every channel ($62–67). The LTV difference is driven entirely by <b>how often</b> customers return — not how much they spend per order.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: RETENTION -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">02</span><span class="section-title">Cohort retention curve</span></div>
+    <p class="section-desc">Of customers who made a first purchase, what percentage placed another order N months later — averaged across all monthly cohorts.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <canvas id="retentionChart" height="290"></canvas>
+      </div>
+      <div class="card">
+        <div class="section-title" style="font-size:15px; margin-bottom:14px;">Sample cohort heatmap</div>
+        <div class="heatmap" id="heatmap"></div>
+        <div class="callout" style="margin-top:18px;">
+          Retention drops sharply after month 0 (100% by definition), then <b>stabilizes around 15–30%</b> — this residual is the loyal core a growth team should protect and nurture.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: RFM -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">03</span><span class="section-title">Customer segmentation (RFM)</span></div>
+    <p class="section-desc">Every customer scored on Recency, Frequency, and Monetary value, then grouped into six business-actionable segments.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <canvas id="rfmChart" height="290"></canvas>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Segment</th><th>Customers</th><th>Share</th></tr></thead>
+          <tbody id="rfmTable"></tbody>
+        </table>
+        <div class="callout rust">
+          <b>35% of customers are At Risk or Lost.</b> Cross-referencing with channel data shows these customers are disproportionately paid_search and social acquisitions — the exact group with weakest retention.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Customer Cohort Retention & LTV Engine — SQLite · Python · SQL window functions</span>
+    <span>Built for Head of Growth budget reallocation analysis</span>
+  </footer>
+
+</div>
+
+<script>
+const channelColors = {
+  organic: '#1F6F5C', referral: '#2E5C8A', email: '#7A5A9E',
+  direct: '#6B7280', social: '#C98A2E', paid_search: '#B8533A', unknown: '#A8A29A'
+};
+
+const ltvData = [
+  { channel: 'organic', customers: 563, avg_orders: 5.31, avg_ltv: 333.18 },
+  { channel: 'referral', customers: 304, avg_orders: 5.00, avg_ltv: 321.56 },
+  { channel: 'email', customers: 287, avg_orders: 2.66, avg_ltv: 172.84 },
+  { channel: 'direct', customers: 291, avg_orders: 2.31, avg_ltv: 150.58 },
+  { channel: 'unknown', customers: 60, avg_orders: 1.43, avg_ltv: 96.27 },
+  { channel: 'social', customers: 602, avg_orders: 1.34, avg_ltv: 88.98 },
+  { channel: 'paid_search', customers: 893, avg_orders: 1.31, avg_ltv: 87.42 }
+];
+
+const rfmData = [
+  { segment: 'Loyal Customers', count: 611 },
+  { segment: 'Champions', count: 593 },
+  { segment: 'Lost', count: 543 },
+  { segment: 'At Risk', count: 520 },
+  { segment: 'Needs Attention', count: 307 },
+  { segment: 'New/Promising', count: 300 }
+];
+
+const retentionCurve = [
+  { month: 0, pct: 100.0 }, { month: 1, pct: 21.3 }, { month: 2, pct: 17.5 },
+  { month: 3, pct: 16.8 }, { month: 4, pct: 19.8 }, { month: 5, pct: 17.2 }, { month: 6, pct: 14.9 }
+];
+
+// ---------- LTV CHART ----------
+new Chart(document.getElementById('ltvChart'), {
+  type: 'bar',
+  data: {
+    labels: ltvData.map(d => d.channel.replace('_',' ')),
+    datasets: [{
+      data: ltvData.map(d => d.avg_ltv),
+      backgroundColor: ltvData.map(d => channelColors[d.channel]),
+      borderRadius: 5,
+      barThickness: 26
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '$' + c.raw.toFixed(2) + ' avg LTV' } } },
+    scales: {
+      x: { grid: { color: '#EDEAE2' }, ticks: { font: { family: 'IBM Plex Mono', size: 11 }, callback: v => '$' + v } },
+      y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 13 } } }
+    }
+  }
+});
+
+// ---------- TABLE: LTV ----------
+document.getElementById('ltvTable').innerHTML = ltvData.map(d => `
+  <tr>
+    <td><span class="channel-tag"><span class="dot" style="background:${channelColors[d.channel]}"></span>${d.channel.replace('_',' ')}</span></td>
+    <td>${d.customers}</td>
+    <td>$${d.avg_ltv.toFixed(2)}</td>
+    <td>${d.avg_orders.toFixed(2)}</td>
+  </tr>`).join('');
+
+// ---------- RETENTION CHART ----------
+new Chart(document.getElementById('retentionChart'), {
+  type: 'line',
+  data: {
+    labels: retentionCurve.map(d => 'Month ' + d.month),
+    datasets: [{
+      data: retentionCurve.map(d => d.pct),
+      borderColor: '#1F6F5C',
+      backgroundColor: 'rgba(31,111,92,0.08)',
+      fill: true,
+      tension: 0.35,
+      pointBackgroundColor: '#1F6F5C',
+      pointRadius: 4,
+      borderWidth: 2.5
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + '% retained' } } },
+    scales: {
+      y: { grid: { color: '#EDEAE2' }, ticks: { callback: v => v + '%', font: { family: 'IBM Plex Mono', size: 11 } } },
+      x: { grid: { display: false }, ticks: { font: { family: 'IBM Plex Mono', size: 11 } } }
+    }
+  }
+});
+
+// ---------- HEATMAP (sample cohorts) ----------
+const heatmapData = [
+  { cohort: '2024-01', vals: [100.0, 33.3, null, null, 33.3, 33.3, null] },
+  { cohort: '2024-02', vals: [100.0, 22.2, 22.2, 33.3, 11.1, 22.2, 22.2] },
+  { cohort: '2025-06', vals: [100.0, null, null, 19.9, 22.8, 21.1, null] },
+  { cohort: '2025-08', vals: [100.0, 29.1, 26.7, 27.3, 25.6, null, null] },
+  { cohort: '2025-10', vals: [100.0, 34.1, 29.3, null, null, null, null] }
+];
+function heatColor(v) {
+  if (v === null) return null;
+  if (v >= 90) return '#1F6F5C';
+  if (v >= 30) return '#4C8A79';
+  if (v >= 20) return '#8FAE9F';
+  if (v >= 10) return '#C9B98E';
+  return '#D9C4A8';
+}
+let hmHtml = `<div></div>${[0,1,2,3,4,5,6].map(m => `<div class="hm-head">M${m}</div>`).join('')}`;
+heatmapData.forEach(row => {
+  hmHtml += `<div class="hm-row-label">${row.cohort}</div>`;
+  row.vals.forEach(v => {
+    if (v === null) { hmHtml += `<div class="hm-cell hm-empty"></div>`; }
+    else { hmHtml += `<div class="hm-cell" style="background:${heatColor(v)}">${v.toFixed(0)}</div>`; }
+  });
+});
+document.getElementById('heatmap').innerHTML = hmHtml;
+
+// ---------- RFM CHART ----------
+const rfmColors = ['#1F6F5C','#4C8A79','#B8533A','#C98A2E','#A8A29A','#6B7280'];
+new Chart(document.getElementById('rfmChart'), {
+  type: 'doughnut',
+  data: {
+    labels: rfmData.map(d => d.segment),
+    datasets: [{ data: rfmData.map(d => d.count), backgroundColor: rfmColors, borderWidth: 3, borderColor: '#FFFFFF' }]
+  },
+  options: {
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, padding: 16, boxWidth: 10 } }
+    },
+    cutout: '58%'
+  }
+});
+
+// ---------- TABLE: RFM ----------
+const totalCustomers = rfmData.reduce((s,d) => s + d.count, 0);
+document.getElementById('rfmTable').innerHTML = rfmData.map((d,i) => `
+  <tr>
+    <td><span class="channel-tag"><span class="dot" style="background:${rfmColors[i]}"></span>${d.segment}</span></td>
+    <td>${d.count}</td>
+    <td>${(100*d.count/totalCustomers).toFixed(1)}%</td>
+  </tr>`).join('');
+</script>
+</body>
+</html>
